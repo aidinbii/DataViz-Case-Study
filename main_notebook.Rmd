@@ -4,6 +4,15 @@ output: html_document
 ---
 ========================================================
 
+<!-- useful links: -->
+<!--     <https://projects.datacamp.com/projects/870> -->
+<!-- <https://www.kaggle.com/kimjihoo/coronavirusdataset?select=TimeAge.csv> -->
+<!-- <http://r-statistics.co/ggplot2-Tutorial-With-R.html#2.%20The%20Layers> -->
+<!-- <http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html> -->
+
+
+
+
 ### Background info
     We make a structured dataset based on the report materials of KCDC and local governments.
     In Korea, we use the terms named '-do', '-si', '-gun' and '-gu',
@@ -26,6 +35,7 @@ Levels of administrative divisions in South Korea:
 ```{r}
 library(ggplot2)
 library(data.table)
+library(lubridate) # to work with dates and times
 ```
 
 ### Data load
@@ -53,7 +63,6 @@ dt_weather <- fread("data_set/Weather.csv")
 
 ## Aidin
 
-
 ### Playground
 
 ## Anis
@@ -63,3 +72,76 @@ dt_weather <- fread("data_set/Weather.csv")
 ## Salim
 
 ## Aidin
+```{r}
+all_provinces <- dt_case[, unique(province)] # list of unique provinces in SK
+total_confirmed_cases <- numeric(0)
+for ( prov in all_provinces ) {
+  total_confirmed_cases[prov] <- dt_case[province == prov, sum(confirmed)]
+}
+dt_total_confirmed_cases <- data.table(province = all_provinces,    total_confirmed = total_confirmed_cases)
+```
+```{r}
+ggplot(data = dt_total_confirmed_cases, aes(x= province, y = total_confirmed) ) + geom_point()
+```
+```{r}
+ggplot(data = dt_TimeProvince, aes(x = date, y =confirmed, color = province )) + geom_line()
+```
+<br/>
+Claim: Daegu has the most number of confirmed cases (= 6680).
+We observe that in Daegu there were 6680 confirmed cases. Is it an outlier?
+Let's try to understand why is that.
+
+#### Daegu
+##### How was the weather in Daegu compared to other provinces in this period (Jan - Jun)?
+```{r}
+weather_in_period <- dt_weather[code >= 10000]
+ggplot(data = weather_in_period, aes(x = date, y = avg_temp, color = province ) ) + geom_line()
+```
+```{r}
+ggplot(data = weather_in_period, aes(x = date, y = avg_temp, color = "Daegu" ) ) + geom_line()
+ggplot(data = weather_in_period, aes(x = date, y = avg_relative_humidity, color = "Daegu" ) ) + geom_line()
+```
+<br/>
+It seems that the weather does not play a role in this.
+
+#### SearchTrend and Policies
+```{r}
+searchTrend_period <- dt_SearchTrend[date >= "2020-01-01"]  # to select from Jan-Jun
+ggplot(data = searchTrend_period, aes(x = date, y =values )) + geom_line()
+```
+<br/>
+To plot multiple columns with the same x-axis using ggplot we first need to transform the data table.
+Using functions like melt, dcast, ...
+```{r}
+coord_x_date <- function(xlim = NULL, ylim = NULL, expand = TRUE) {
+    if (!is.null(xlim)) {
+        xlim <- lubridate::as_date(xlim)
+    }
+    ggplot2::coord_cartesian(xlim = xlim, ylim = ylim, expand = expand)
+}
+coord_x_datetime <- function(xlim = NULL, ylim = NULL, expand = TRUE) {
+    if (!is.null(xlim)) {
+        xlim <- lubridate::as_datetime(xlim)
+    }
+    ggplot2::coord_cartesian(xlim = xlim, ylim = ylim, expand = expand)
+}
+```
+```{r}
+melted_dt <- melt(searchTrend_period,  measure.vars = c("cold", "flu", "pneumonia", "coronavirus"), value.name = "search")
+ggplot(data = melted_dt, aes(x = date, y =search, color = variable )) + geom_line()
+  ## scale_x_date(date_breaks = "1 week") + coord_x_date( xlim = c("2020-01-01", "2020-04-01"))
+```
+Claim: People in SK heavily searched for keyword "coronavirus" among other words (cold, flu, pneumonia) is this period.
+
+#### TimeSex
+Claim: Over time the number of COVID-19 cases among females is greater than among males.
+```{r}
+ggplot(data = dt_TimeGender, aes(x=date, y=confirmed, color=sex)) + geom_line()
+```
+Look at the difference between F & M in time.
+```{r}
+cast_sex <- dcast(data = dt_TimeGender, formula  = date ~ sex, value.var = "confirmed" )
+dt1 <- cast_sex[, .(difference_F_M = female - male), by = date]
+dt1[, max(difference_F_M)] # maximal difference
+ggplot(data = dt1, aes(x=date, y=difference_F_M)) + geom_line()
+```
