@@ -1,0 +1,65 @@
+---
+title: "Data analysis of COVID-19 data set"
+output: html_document
+---
+========================================================
+
+### Background info
+    We make a structured dataset based on the report materials of KCDC and local governments.
+    In Korea, we use the terms named '-do', '-si', '-gun' and '-gu',
+    The meaning of them are explained below.
+
+Levels of administrative divisions in South Korea:
+    Upper Level (Provincial-level divisions)
+
+    Special City: Seoul
+    Metropolitan City: Busan / Daegu / Daejeon / Gwangju / Incheon / Ulsan
+    Province(-do): Gyeonggi-do / Gangwon-do / Chungcheongbuk-do / Chungcheongnam-do / Jeollabuk-do / Jeollanam-do / Gyeongsangbuk-do / Gyeongsangnam-do
+
+   Lower Level (Municipal-level divisions)
+
+    City(-si) List of cities in South Korea
+    Country(-gun) List of counties of South Korea
+    District(-gu) List of districts in South Korea
+
+### Libraries
+```{r}
+library(ggplot2)
+library(data.table)
+```
+
+### Data load
+```{r}
+dt_case <- fread("data_set/Case.csv")
+dt_patientinfo <- fread("data_set/PatientInfo.csv")
+dt_policy <- fread("data_set/Policy.csv")
+dt_region <- fread("data_set/Region.csv")
+dt_SearchTrend <- fread("data_set/SearchTrend.csv")
+dt_SeoulFloating <- fread("data_set/SeoulFloating.csv")
+dt_TimeAge <- fread("data_set/TimeAge.csv")
+dt_Time <- fread("data_set/Time.csv")
+dt_TimeGender <- fread("data_set/TimeGender.csv")
+dt_TimeProvince <- fread("data_set/TimeProvince.csv")
+dt_weather <- fread("data_set/Weather.csv")
+```
+
+### Main part
+
+## Anis
+
+## Siyam
+
+## Salim
+
+## Aidin
+
+
+### Playground
+
+## Anis
+
+## Siyam
+
+## Salim
+
+## Aidin
