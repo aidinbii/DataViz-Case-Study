@@ -107,7 +107,6 @@ It seems that the weather does not play a role in this.
 #### SearchTrend and Policies
 ```{r}
 searchTrend_period <- dt_SearchTrend[date >= "2020-01-01"]  # to select from Jan-Jun
-ggplot(data = searchTrend_period, aes(x = date, y =values )) + geom_line()
 ```
 <br/>
 To plot multiple columns with the same x-axis using ggplot we first need to transform the data table.
