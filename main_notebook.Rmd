@@ -1,6 +1,7 @@
 ---
 title: "Data analysis of COVID-19 data set"
-output: pdf_document
+output:
+  pdf_document
 ---
 ========================================================
 
@@ -11,7 +12,17 @@ output: pdf_document
 <!-- <http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html> -->
 
 
+### Team Info:
+Group No: 013
 
+Team Members:
+
+| Name  | Number  |
+| :------- | :----------------------- | :--------- |
+| Sbihi,	Anis   | Member 1 | 
+| Khalil,	Salim | Member 2 |
+| Khan,	Md Siyam Sajeeb   | Member 3 | 
+| Biibosunov,	Aidin | Member 4 |
 
 ### Background info
     We make a structured dataset based on the report materials of KCDC and local governments.
@@ -32,12 +43,14 @@ Levels of administrative divisions in South Korea:
     District(-gu) List of districts in South Korea
 
 ### Libraries
-```{r}
+```{r, message=FALSE}
 library(ggplot2)
 library(data.table)
-library(lubridate) # to work with dates and times
+library(lubridate) 
 library(dplyr)
 library(bit64)
+library(scales)
+
 ```
 
 ### Data load
@@ -55,16 +68,17 @@ dt_TimeProvince <- fread("data_set/TimeProvince.csv")
 dt_weather <- fread("data_set/Weather.csv")
 ```
 
-### Main part
 
 # Claim 1: Daegu has the most number of confirmed cases (= 6680).
 ```{r}
+options(width = 300)
 all_provinces <- dt_case[, unique(province)] # list of unique provinces in SK
 total_confirmed_cases <- numeric(0)
 for ( prov in all_provinces ) {
   total_confirmed_cases[prov] <- dt_case[province == prov, sum(confirmed)]
 }
-dt_total_confirmed_cases <- data.table(province = all_provinces,    total_confirmed = total_confirmed_cases)
+dt_total_confirmed_cases <- data.table(province = all_provinces, 
+                                       total_confirmed = total_confirmed_cases)
 ```
 
 ```{r}
@@ -81,46 +95,61 @@ Let's try to understand why is that.
 [report](https://uclg-aspac.org/wp-content/uploads/2020/07/FinalOvercoming-COVID-19-in-Daegu_Korea_July-2020.pdf)
 
 
-# Claim 2: Almost 50% of the total confirmed cases were originated from churches
+# Claim 2: Almost 49% of the total confirmed cases were originated from religious institutions (Churches, Temples)
 ```{r}
+# Let's find out the total number of COVID-19 cases
 total_confirmed_cases <- dt_case[, list(total_confirmed_cases = sum(confirmed))]
 print(total_confirmed_cases)
 ```
 ```{r}
-# Data table with only the infection cases containing the keyword church
-dt_case_related_to_churches <- dt_case[infection_case %like% "Church|church"]
-head(dt_case_related_to_churches)
+# Data table with only the infection cases containing the keyword 'Church' and 
+# 'Temple'
+dt_case_related_to_rel_inst <- dt_case[infection_case %like% 
+                                         "Church|church|temple|Temple"]
 ```
+
 ```{r}
-# Total number of Cases orginated from the infection cases which contain the keyword 'Church' in it
-total_cases_from_churches <- dt_case_related_to_churches[infection_case %like% "Church|church", list(total_cases = sum(confirmed))]
+# Total number of Cases originated from the infection cases which contain the 
+# keyword 'Church' or 'Temple' in it
+total_cases_from_churches <- dt_case_related_to_rel_inst[
+  infection_case %like% "Church|church|Temple|temple", 
+  list(total_cases = sum(confirmed))]
 print(total_cases_from_churches)
 ```
+
 ```{r}
 # Total number of infection cases caused from other sources
-total_cases_from_other_sources <- dt_case[!infection_case %like% "Church|church", list(total_cases = sum(confirmed))]
+total_cases_from_other_sources <- dt_case[
+  !infection_case %like% "Church|church|Temple|temple", 
+  list(total_cases = sum(confirmed))]
 print(total_cases_from_other_sources)
 ```
 ```{r}
 # Proportion of the total cases originated from churches
-proportion <- (total_cases_from_churches[, total_cases] / total_confirmed_cases[, total_confirmed_cases]) * 100
+proportion <- (total_cases_from_churches[
+  , total_cases] / total_confirmed_cases[, total_confirmed_cases]) * 100
 print(proportion)
 ```
 
 ```{r}
-church <- data.table(infectionCases = c('From Church', 'Other Sources'), totalCount = c(total_cases_from_churches, total_cases_from_other_sources))
+rel_inst <- data.table(infectionCases = c('From Religious Institutions', 'Other Sources'), 
+                     totalCount = c(total_cases_from_churches, 
+                                    total_cases_from_other_sources))
 
-ggplot(church, aes(infectionCases, totalCount)) +
-  geom_col()
+ggplot(rel_inst, aes(infectionCases, totalCount, fill = infectionCases)) +
+  geom_col() 
 ```
 
 ```{r}
-# Which church originated the highest number of infections
-church_wise_cases <- dt_case_related_to_churches[, list(total_cases = sum(confirmed)), by = infection_case] %>%
+# Which religious institution originated the highest number of infections
+rel_inst_wise_cases <- 
+  dt_case_related_to_rel_inst[, 
+                              list(total_cases = sum(confirmed)), 
+                              by = infection_case] %>% 
   arrange(desc(total_cases))
-church_wise_cases
+rel_inst_wise_cases
 
-ggplot(church_wise_cases, aes(infection_case, total_cases)) +
+ggplot(rel_inst_wise_cases, aes(infection_case, total_cases)) +
   geom_col() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
@@ -128,43 +157,55 @@ ggplot(church_wise_cases, aes(infection_case, total_cases)) +
 
 
 # Claim 3: The Patient who infected the most other patients
-<!-- ```{r} -->
-<!-- patient_with_most_infection_record <- dt_patientinfo[infected_by != "", list(inf_count = .N), by = infected_by] %>% arrange(desc(inf_count)) -->
-<!-- patient_with_most_infection_record -->
-<!-- ``` -->
-<!-- ```{r} -->
-<!-- id <- patient_with_most_infection_record[inf_count == max(inf_count), infected_by] -->
-<!-- id -->
-<!-- dt_patientinfo[patient_id == id] -->
-<!-- ``` -->
+```{r results = "asis"}
+patient_with_most_infection_record <- 
+  dt_patientinfo[infected_by != "", 
+                 list(inf_count = .N), 
+                 by = infected_by] %>% arrange(desc(inf_count))
+patient_with_most_infection_record
+```
 
-# Claim 4: Claim regarding Death Cases Genderwise
-#### Death cases are higher in males than females in general
-### Affected vs Death numbers
+```{r}
+id <- patient_with_most_infection_record[inf_count == max(inf_count), 
+                                         infected_by]
+id
+dt_patientinfo[patient_id == id]
+```
+
+# Claim 4: Death rate in males is double of the females although the females are affected more in general
 ```{r}
 dt_patientinfo <- na.omit(dt_patientinfo, cols = "state")
 
 # Let's first find the total affected people gender wise
-total_affected_gender_wise <- dt_patientinfo[sex != "", list(count = .N), by = sex]
+total_affected_gender_wise <- 
+  dt_patientinfo[sex != "", list(count = .N), by = sex]
 total_affected_gender_wise
+
+ggplot(total_affected_gender_wise, aes(x = sex, y = count, fill = sex)) +
+  geom_col()
 ```
 
 ```{r}
 # Let's find out the total number of deceased people
-total_deceased <- dt_patientinfo[state == "deceased", list(dount = .N)]
+total_deceased <- dt_patientinfo[state == "deceased", list(count = .N)]
 total_deceased
 ```
 
 ```{r}
 # Now, find out the death count between males and females
-total_death_gender_wise <- dt_patientinfo[state == "deceased" & sex != "", list(death_count = .N), by = sex] %>%
+total_death_gender_wise <- 
+  dt_patientinfo[state == "deceased" & sex != "", 
+                 list(death_count = .N), by = sex] %>%
   arrange(desc(death_count))
 total_death_gender_wise
 ```
 ### The most affected male age groups are from 60s - 80s
 ```{r}
 # Now, find out the death count among MALES in different age groups
-male_death_age_group_wise <- dt_patientinfo[state == "deceased" & sex == "male" & age != "", list(death_count = .N), by = age] %>% arrange(desc(death_count))
+male_death_age_group_wise <- 
+  dt_patientinfo[state == "deceased" & sex == "male" & age != "", 
+                 list(death_count = .N), 
+                 by = age] %>% arrange(desc(death_count))
 male_death_age_group_wise
 
 ggplot(male_death_age_group_wise, aes(age, death_count)) +
@@ -173,7 +214,10 @@ ggplot(male_death_age_group_wise, aes(age, death_count)) +
 ### The most affected female age groups are from 70s - 80s
 ```{r}
 # Let's find out the death count among FEMALES in different age groups
-female_death_age_group_wise <- dt_patientinfo[state == "deceased" & sex == "female" & age != "", list(death_count = .N), by = age] %>% arrange(desc(death_count))
+female_death_age_group_wise <- 
+  dt_patientinfo[state == "deceased" & sex == "female" & age != "", 
+                 list(death_count = .N), 
+                 by = age] %>% arrange(desc(death_count))
 female_death_age_group_wise
 
 
@@ -184,46 +228,66 @@ ggplot(female_death_age_group_wise, aes(age, death_count)) +
 
 
 ```{r}
-# Now, let's find out the number of affected people in different age groups in Males (We will ignore the empty ages)
-male_affected_age_group_wise <- dt_patientinfo[age != "" & sex == "male", list(count = .N), by = list(age)] %>%
+# Now, let's find out the number of affected people in different age groups in
+# Males (We will ignore the empty ages)
+male_affected_age_group_wise <- 
+  dt_patientinfo[age != "" & sex == "male", 
+                 list(count = .N), by = list(age)] %>%
   arrange(desc(count))
 male_affected_age_group_wise
 
 ggplot(male_affected_age_group_wise, aes(age, count)) +
-  geom_col()
+  geom_col(fill = "firebrick2")
 ```
 
 
 ```{r}
 # Let's do the same for the females
-female_affected_age_group_wise <- dt_patientinfo[age != "" & sex == "female", list(count = .N), by = list(age)] %>%
+female_affected_age_group_wise <- 
+  dt_patientinfo[age != "" & sex == "female", 
+                 list(count = .N), by = list(age)] %>%
   arrange(desc(count))
 female_affected_age_group_wise
 
 ggplot(female_affected_age_group_wise, aes(age, count)) +
-  geom_col()
+  geom_col(fill = "steelblue")
 ```
 ```{r}
 # Group wise affected and death case comparison for FEMALES
-female_merged_affected_death <- merge(female_affected_age_group_wise, female_death_age_group_wise, by = "age", all.x = TRUE)
-## female_merged_affected_death
+female_merged_affected_death <- 
+  merge(female_affected_age_group_wise, 
+        female_death_age_group_wise, by = "age", all.x = TRUE)
+female_merged_affected_death
 
-female_merged_affected_death[, death_to_affected_proportion := (death_count / count) * 100]
-## female_merged_affected_death
+female_merged_affected_death[, 
+                             death_to_affected_proportion := 
+                               (death_count / count) * 100]
+female_merged_affected_death <- female_merged_affected_death %>% 
+  arrange(desc(death_to_affected_proportion))
+female_merged_affected_death
 ```
 
 ```{r}
 # Group wise affected and death case comparison for MALES
-male_merged_affected_death <- merge(male_affected_age_group_wise, male_death_age_group_wise, by = "age", all.x = TRUE)
+male_merged_affected_death <- 
+  merge(male_affected_age_group_wise, 
+        male_death_age_group_wise, by = "age", all.x = TRUE)
 male_merged_affected_death
 
-male_merged_affected_death[, death_to_affected_proportion := (death_count / count) * 100]
+male_merged_affected_death[, 
+                           death_to_affected_proportion := 
+                             (death_count / count) * 100]
+male_merged_affected_death <- male_merged_affected_death %>% 
+  arrange(desc(death_to_affected_proportion))
 male_merged_affected_death
 ```
 ```{r}
 # Investigating the overall death to affected ratio gneder wise
-merged_both_gender_death_and_affected <- merge(total_affected_gender_wise, total_death_gender_wise)
-merged_both_gender_death_and_affected[, death_to_affected_proportion := (death_count/count) * 100]
+merged_both_gender_death_and_affected <- 
+  merge(total_affected_gender_wise, total_death_gender_wise)
+merged_both_gender_death_and_affected[, 
+                                      death_to_affected_proportion := 
+                                        (death_count/count) * 100]
 merged_both_gender_death_and_affected
 ```
 
@@ -235,39 +299,54 @@ Recovery time is calculated as following:
 recovery time = released_date - confirmed_date
 ```{r}
 # Mean Recovery time by age groups
-mean_recovery_time_by_age_groups <- dt_patientinfo[state == "released" & age != "", list(mean_recovery_time = mean(released_date - confirmed_date, na.rm = TRUE)), by = age] %>%
+mean_recovery_time_by_age_groups <- 
+  dt_patientinfo[state == "released" & age != "", 
+                 list(mean_recovery_time = mean(released_date - confirmed_date, 
+                                                na.rm = TRUE)), by = age] %>%
   arrange(desc(mean_recovery_time))
 print(mean_recovery_time_by_age_groups)
 
 ggplot(mean_recovery_time_by_age_groups, aes(x = age, y = mean_recovery_time)) +
-  geom_col()
+  geom_col(fill = "firebrick2")
 ```
 
-```{r}
+```{r long_output}
 # Median Recovery time by age groups
 
-median_recovery_time_by_age_groups <- dt_patientinfo[state == "released" & age !="", list(median_recovery_time = as.double(median(released_date - confirmed_date, na.rm = TRUE))), by = age] %>% arrange(desc(median_recovery_time))
+median_recovery_time_by_age_groups <- 
+  dt_patientinfo[state == "released" & age !="", 
+                 list(
+                   median_recovery_time = 
+                     as.double(median(released_date - confirmed_date, 
+                                      na.rm = TRUE))), 
+                 by = age] %>% arrange(desc(median_recovery_time))
 
 print(median_recovery_time_by_age_groups)
 
-ggplot(median_recovery_time_by_age_groups, aes(x = age, y = median_recovery_time)) +
-  geom_col()
+ggplot(median_recovery_time_by_age_groups, 
+       aes(x = age, y = median_recovery_time)) +
+  geom_col(fill = "steelblue")
 ```
 
 ```{r}
 # Let's investigate the 0s age group
-dt_0s_age_group <- dt_patientinfo[age == '0s' & age != "", list(mean = mean(released_date - confirmed_date, na.rm = TRUE), sD = sd(released_date - confirmed_date, na.rm = TRUE))]
+dt_0s_age_group <- 
+  dt_patientinfo[age == '0s' & age != "", 
+                 list(mean = mean(released_date - confirmed_date, na.rm = TRUE), 
+                      sD = sd(released_date - confirmed_date, na.rm = TRUE))]
 
 dt_0s_age_group
 ```
 
 
 ```{r}
-dt_10s_age_group <- dt_patientinfo[age == '10s' & age != "", list(mean = mean(released_date - confirmed_date, na.rm = TRUE), sD = sd(released_date - confirmed_date, na.rm = TRUE))]
+dt_10s_age_group <- 
+  dt_patientinfo[age == '10s' & age != "", 
+                 list(mean = mean(released_date - confirmed_date, na.rm = TRUE), 
+                      sD = sd(released_date - confirmed_date, na.rm = TRUE))]
 
 
 dt_10s_age_group
-
 ```
 
 # Claim 6 : People in SK heavily searched for keyword "coronavirus" among other words (cold, flu, pneumonia) is this period.
@@ -301,77 +380,84 @@ ggsave("searchTrend.png", width = 12, height = 5)
 
 # Claim 7: the most effective measures against the number of covid cases were the immigration, technology, health policies (from February to March), education, alert, health and social measures (from March to April)
 ```{r}
-class(dt_policy$start_date)
-class(dt_Time$date)
-class(dt_Time$ln_confirmed)
 dt_policy$start_date <- as.Date(dt_policy$start_date, '%m/%d/%y', optional = FALSE)
 dt_Time[, log_confirmed := log(confirmed, base = 10)]
 dt_Time$ln_confirmed <- as.numeric(dt_Time$ln_confirmed)
 
-ggplot(dt_policy, aes(x = start_date)) + geom_bar(width = 0.5, color = 'blue') + facet_wrap(~type, scales='free') + geom_line(data = dt_Time, aes(x = date , y = log_confirmed, color = 'red'))+ labs(title = "Number of Policies starting (by type) and daily log cumulated confirmed cases", x = "Months", y = "Count", font.title=2, font.x=0.1, font.y=1) + scale_x_date(breaks = "1 month", labels = date_format("%m"))
+ggplot(dt_policy, aes(x = start_date)) + 
+  geom_bar(width = 0.5, color = 'blue') + 
+  facet_wrap(~type, scales='free') + 
+  geom_line(data = dt_Time, aes(x = date , y = log_confirmed, color = 'red'))+ 
+  labs(
+    title = "Number of Policies starting (by type) and daily log cumulated confirmed cases", 
+       x = "Months", y = "Count", font.title=2, font.x=0.1, font.y=1) + 
+  scale_x_date(breaks = "1 month", labels = date_format("%m"))
 ```
+
 # Claim 8: higher average temperature induced more number of daily non group covid cases (May to June 2020) but had no clear relation with the number of daily group covid cases
-```{r}
+```{r, message=FALSE}
 #Setup
-dt_patientclean <- dt_patientinfo[!(is.na(dt_patientinfo$infection_case) | dt_patientinfo$infection_case==""), ]
-dt_patientnongroup <- subset(dt_patientclean, dt_patientclean$infection_case == c("contact with patient", "overseas inflow", "etc"))
-dt_patientgroup <- dt_patientclean[dt_patientclean$infection_case!="contact with patient",]
-dt_patientgroup <- dt_patientgroup[dt_patientgroup$infection_case!="overseas inflow",]
-dt_patientgroup <- dt_patientgroup[dt_patientgroup$infection_case!="etc",]
-dt_patientnongrouptest <- dt_patientnongroup[dt_patientnongroup$infection_case!="overseas inflow",]
+dt_patientclean <- dt_patientinfo[!(is.na(dt_patientinfo$infection_case) | 
+                                      dt_patientinfo$infection_case==""), ]
+dt_patientnongroup <- 
+  subset(dt_patientclean, 
+         dt_patientclean$infection_case == 
+           c("contact with patient", "overseas inflow", "etc"))
+```
+
+
+```{r}
+dt_patientgroup <- dt_patientclean[
+  dt_patientclean$infection_case!="contact with patient",]
+dt_patientgroup <- dt_patientgroup[
+  dt_patientgroup$infection_case!="overseas inflow",]
+dt_patientgroup <- 
+  dt_patientgroup[dt_patientgroup$infection_case!="etc",]
+dt_patientnongrouptest <- 
+  dt_patientnongroup[dt_patientnongroup$infection_case!="overseas inflow",]
 #average temperature & group=false
 dt_weather$date <- as.Date(dt_weather$date, '%m/%d/%y', optional = FALSE)
 dt_patientnongroup$confirmed_date <- as.Date(dt_patientnongroup$confirmed_date, '%m/%d/%y', optional = FALSE)
 
-ggplot(dt_patientnongroup, aes(x = confirmed_date)) + geom_bar(width=0.5, color='blue') + geom_point(data = dt_weather, aes(x = date, y = avg_temp, color='red'))+ geom_smooth(data = dt_weather, aes(x = date, y = avg_temp)) + scale_x_date(breaks = "1 month",labels = date_format("%m-%Y"), limits = as.Date(c('2020-01-30', '2020-06-30'))) + labs(title = "Daily average temperature and daily non-group covid cases among patients in South-Korea", x = "Months", y = "Count", font.title=2, font.x=0.1, font.y=1)
+ggplot(dt_patientnongroup, aes(x = confirmed_date)) + 
+  geom_bar(width=0.5, color='blue') + 
+  geom_point(data = dt_weather, aes(x = date, y = avg_temp, color='red'))+ 
+  geom_smooth(data = dt_weather, aes(x = date, y = avg_temp)) + 
+  scale_x_date(breaks = "1 month",
+               labels = date_format("%m-%Y"), 
+               limits = as.Date(c('2020-01-30', '2020-06-30'))) + 
+  labs(title = "Daily average temperature and daily non-group
+       covid cases among patients in South-Korea", x = "Months", 
+       y = "Count", font.title=2, font.x=0.1, font.y=1)
 
 #avg_temp & group=TRUE
-ggplot(dt_patientgroup, aes(x = confirmed_date)) + geom_bar(width=0.5, color='blue') + geom_point(data = dt_weather, aes(x = date, y = avg_temp, color='red'))+ geom_smooth(data = dt_weather, aes(x = date, y = avg_temp)) + scale_x_date(breaks = "1 month",labels = date_format("%m-%Y"), limits = as.Date(c('2020-01-30', '2020-06-30'))) + labs(title = "Daily average temperature and daily group covid cases among patients in South-Korea", x = "Months", y = "Count", font.title=2, font.x=0.1, font.y=1)
+ggplot(dt_patientgroup, aes(x = confirmed_date)) + 
+  geom_bar(width=0.5, color='blue') + 
+  geom_point(data = dt_weather, aes(x = date, y = avg_temp, color='red'))+ 
+  geom_smooth(data = dt_weather, aes(x = date, y = avg_temp)) + 
+  scale_x_date(breaks = "1 month",labels = date_format("%m-%Y"), 
+               limits = as.Date(c('2020-01-30', '2020-06-30'))) + 
+  labs(title = "Daily average temperature and daily group covid 
+       cases among patients in South-Korea", x = "Months", y = "Count", 
+       font.title=2, font.x=0.1, font.y=1)
 ```
 
 # Claim 9: The daily Corona Virus cases decreased after the imposition of Online classes policy.
 ```{r}
-class(dt_policy$start_date)
 dt_policy$start_date <- as.Date(dt_policy$start_date, '%m/%d/%y', optional = FALSE)
-class(dt_policy$start_date)
 
 dt_Time$diff <- ave(dt_Time$confirmed, FUN=function(x) c(0, diff(x)))
-class(dt_Time$diff)
 dt_Time$policy <- NA
-class(dt_Time$policy)
 dt_Time$policy <- as.numeric(dt_Time$policy)
-class(dt_Time$policy)
 
 dt_Time[dt_Time$date=="2020-04-09","policy"] <- 820
 
-ggplot(dt_Time, aes(date,diff)) + geom_line(color = 'red') + geom_col(data=dt_Time, aes(date, policy)) + labs(title = "Daily new Covid cases in Korea before and after Online classes policy", x = "Months", y = "Daily Cases", font.title=2, font.x=0.1, font.y=1)
+ggplot(dt_Time, aes(date,diff)) + 
+  geom_line(color = 'red') + 
+  geom_col(data=dt_Time, aes(date, policy)) + 
+  labs(title = "Daily new Covid cases in Korea before and after Online classes policy", 
+       x = "Months", y = "Daily Cases", font.title=2, font.x=0.1, font.y=1)
 ```
 
 
 
-
-
-
-
-Number of
-```{r}
-no_of_cases_day_wise <- dt_patientinfo[, list(affected_count = .N), by = confirmed_date]
-no_of_recoveries_day_wise <- dt_patientinfo[, list(recovery_count = .N), by = released_date]
-no_of_deaths_day_wise <- dt_patientinfo[state == "deceased", list(death_count = .N), by = confirmed_date]
-
-setnames(no_of_cases_day_wise, "confirmed_date", "date")
-setnames(no_of_recoveries_day_wise, "released_date", "date")
-setnames(no_of_deaths_day_wise, "confirmed_date", "date")
-
-merged_affected_and_recovery <- merge(no_of_cases_day_wise, no_of_recoveries_day_wise, by = "date")
-
-merged_affected_and_recovery <- merge(merged_affected_and_recovery, no_of_deaths_day_wise, by = "date")
-merged_affected_and_recovery
-
-ggplot(na.omit(merged_affected_and_recovery), aes(x = date)) +
-  geom_line(aes(y = affected_count), color = "darkred") +
-  geom_line(aes(y = recovery_count), color = "steelblue", linetype = "twodash") +
-  geom_line(aes(y = death_count), color = "darkgreen") +
-  labs(colour = colnames(merged_affected_and_recovery))
-
-```
