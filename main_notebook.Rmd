@@ -38,7 +38,6 @@ library(data.table)
 library(lubridate) # to work with dates and times
 library(dplyr)
 library(bit64)
-
 ```
 
 ### Data load
@@ -70,9 +69,11 @@ dt_total_confirmed_cases <- data.table(province = all_provinces,    total_confir
 
 ```{r}
 ggplot(data = dt_total_confirmed_cases, aes(x= total_confirmed, y = province ) ) + geom_point()
+ggsave("daegu.png", width = 10, height = 2.5)
 ```
 ```{r}
-ggplot(data = dt_TimeProvince, aes(x = date, y =confirmed, color = province )) + geom_line()
+ggplot(data = dt_TimeProvince, aes(x = date, y =log(confirmed), color = province )) + geom_line()
+ggsave("daegu2.png", width = 7, height = 5)
 ```
 <br/>
 Comment: We observe that in Daegu there were 6680 confirmed cases. Is it an outlier?
@@ -292,7 +293,8 @@ coord_x_datetime <- function(xlim = NULL, ylim = NULL, expand = TRUE) {
 ```
 ```{r}
 melted_dt <- melt(searchTrend_period,  measure.vars = c("cold", "flu", "pneumonia", "coronavirus"), value.name = "search")
-ggplot(data = melted_dt, aes(x = date, y =search, color = variable )) + geom_line()
+ggplot(data = melted_dt, aes(x = date, y =log(search), color = variable )) + geom_line()
+ggsave("searchTrend.png", width = 12, height = 5)
   ## scale_x_date(date_breaks = "1 week") + coord_x_date( xlim = c("2020-01-01", "2020-04-01"))
 ```
 
